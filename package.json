@@ -1,0 +1,20 @@
+{
+  "name": "giftstar-bot",
+  "version": "1.1.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "migrate": "node migrate.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "telegraf": "^4.15.0",
+    "pg": "^8.11.0",
+    "dotenv": "^16.0.3",
+    "node-fetch": "^3.4.1",
+    "@aws-sdk/client-s3": "^3.330.0",
+    "multer": "^1.4.5-lts.1",
+    "ejs": "^3.1.9"
+  }
+}
