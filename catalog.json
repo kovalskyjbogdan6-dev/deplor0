@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "id": "case_basic",
+      "title": "Basic Case",
+      "price": 100,
+      "items": [
+        {"id": "pudgy_dog", "title": "Pudgy Dog", "rarity": "legendary", "weight": 1},
+        {"id": "heart_locket", "title": "Heart Locket", "rarity": "rare", "weight": 5},
+        {"id": "rose", "title": "Rose", "rarity": "common", "weight": 20}
+      ]
+    },
+    {
+      "id": "case_promo",
+      "title": "Promo Case",
+      "price": 450,
+      "items": [
+        {"id": "rgb_box", "title": "RGB Capsule", "rarity": "rare", "weight": 8},
+        {"id": "vision_case", "title": "Vision Case", "rarity": "epic", "weight": 2},
+        {"id": "farm_case", "title": "Farm Case", "rarity": "common", "weight": 30}
+      ]
+    }
+  ]
+}
