@@ -1,4 +1,3 @@
-# name=main.py
 import asyncio
 import json
 import os
@@ -42,18 +41,19 @@ async def init_db():
         """)
         await db.commit()
 
-async def get_user(user_id, username=None):
+async def get_user(user_id: int, username: str | None = None):
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute("SELECT user_id, username, stars FROM users WHERE user_id = ?", (user_id,))
         row = await cur.fetchone()
         if row:
             return {"user_id": row[0], "username": row[1], "stars": row[2]}
-        # create
-        await db.execute("INSERT INTO users (user_id, username, stars) VALUES (?, ?, ?)", (user_id, username or "", 500))
+        # create with starter balance
+        starter = int(os.getenv("STARTER_STARS", "500"))
+        await db.execute("INSERT INTO users (user_id, username, stars) VALUES (?, ?, ?)", (user_id, username or "", starter))
         await db.commit()
-        return {"user_id": user_id, "username": username or "", "stars": 500}
+        return {"user_id": user_id, "username": username or "", "stars": starter}
 
-async def change_stars(user_id, delta):
+async def change_stars(user_id: int, delta: int):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE users SET stars = stars + ? WHERE user_id = ?", (delta, user_id))
         await db.commit()
@@ -61,7 +61,7 @@ async def change_stars(user_id, delta):
         r = await cur.fetchone()
         return r[0] if r else None
 
-async def add_to_collection(user_id, item):
+async def add_to_collection(user_id: int, item: dict):
     async with aiosqlite.connect(DB_PATH) as db:
         try:
             await db.execute(
@@ -73,15 +73,32 @@ async def add_to_collection(user_id, item):
         except aiosqlite.IntegrityError:
             return False
 
-async def get_collection(user_id):
+async def get_collection(user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute("SELECT item_id, item_title, rarity FROM collection WHERE user_id = ?", (user_id,))
         rows = await cur.fetchall()
         return [{"id": r[0], "title": r[1], "rarity": r[2]} for r in rows]
 
 # --- Catalog helpers ---
-with open(CATALOG_FILE, "r", encoding="utf-8") as f:
-    CATALOG = json.load(f)
+if not os.path.exists(CATALOG_FILE):
+    # default small catalog if файл не задан
+    CATALOG = {
+        "cases": [
+            {
+                "id": "case_basic",
+                "title": "Basic Case",
+                "price": 100,
+                "items": [
+                    {"id": "pudgy_dog", "title": "Pudgy Dog", "rarity": "legendary", "weight": 1},
+                    {"id": "heart_locket", "title": "Heart Locket", "rarity": "rare", "weight": 5},
+                    {"id": "rose", "title": "Rose", "rarity": "common", "weight": 20}
+                ]
+            }
+        ]
+    }
+else:
+    with open(CATALOG_FILE, "r", encoding="utf-8") as f:
+        CATALOG = json.load(f)
 
 def list_cases_kb():
     kb = InlineKeyboardMarkup()
@@ -101,7 +118,7 @@ def main_keyboard():
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
     await get_user(message.from_user.id, message.from_user.username)
-    text = "Добро пожаловать в DARIKUM! Здесь вы открываете кейсы, собираете коллекцию и тратите Stars (⭐)."
+    text = "Добро пожаловать в DARIKUM! Открывай кейсы, собирай коллекцию и трать Stars (⭐)."
     await message.answer(text, reply_markup=main_keyboard())
 
 @dp.message_handler(lambda m: m.text == "Открыть кейс")
@@ -126,7 +143,10 @@ async def process_open_case(cb: types.CallbackQuery):
     # short fake animation
     for i in range(3):
         await asyncio.sleep(1.0)
-        await bot.edit_message_text(f"Открываем кейс... Идёт генерация подарка{'.'*(i+1)}", cb.from_user.id, msg.message_id)
+        try:
+            await bot.edit_message_text(f"Открываем кейс... Идёт генерация подарка{'.'*(i+1)}", cb.from_user.id, msg.message_id)
+        except Exception:
+            pass
     # choose random item by weights
     items = case["items"]
     weights = [it.get("weight", 1) for it in items]
@@ -161,11 +181,11 @@ async def my_collection(message: types.Message):
 @dp.message_handler(lambda m: m.text == "Баланс")
 async def balance_cmd(message: types.Message):
     user = await get_user(message.from_user.id, message.from_user.username)
-    await message.answer(f"Ваш баланс: {user['stars']} ⭐\n(тест: в профиле при первом старте выданы 500 ⭐)")
+    await message.answer(f"Ваш баланс: {user['stars']} ⭐\n(стартовый баланс выдан при первом запуске)")
 
 @dp.message_handler(commands=["addstars"])
 async def addstars_test(message: types.Message):
-    # тестовая команда для добавления монет (только владельцу/локально)
+    # тестовая команда для добавления монет (в идеале: только для админа)
     args = message.get_args()
     try:
         delta = int(args)
